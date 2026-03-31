@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DQ9 자산투여금액 조견표</title>
+
+  <meta property="og:type"        content="website" />
+  <meta property="og:title"       content="DQ9 자산투여금액 조견표" />
+  <meta property="og:description" content="DQ9 누적 투여금액 현황을 한눈에 확인하세요." />
+  <meta property="og:image"       content="https://extra.dquant9.com/images/og-feature.jpg" />
+  <meta property="og:url"         content="https://extra.dquant9.com" />
+  <meta property="og:site_name"   content="DQ9 자산투여금액 조견표" />
+
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;800&family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="css/style.css" />
+
+<style>
+/* 로딩 오버레이 */
+#loadingOverlay {
+  position:fixed; inset:0; background:var(--cyber-bg);
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  z-index:9999; gap:16px;
+}
+#loadingOverlay .spin {
+  width:48px; height:48px; border:3px solid rgba(0,198,255,0.2);
+  border-top-color:#00c6ff; border-radius:50%;
+  animation:spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform:rotate(360deg); } }
+#loadingOverlay p { color:#8ab4d4; font-size:0.85rem; font-family:'Noto Sans KR',sans-serif; }
+</style>
+</head>
+<body>
+
+<!-- 로딩 오버레이 -->
+<div id="loadingOverlay">
+  <div class="spin"></div>
+  <p>데이터 불러오는 중...</p>
+</div>
+
+<!-- Header -->
+<header class="header">
+  <div class="header-inner">
+    <div class="header-title">
+      <canvas class="dq9-logo" width="100" height="80" style="width:100px;height:80px;vertical-align:middle;"></canvas>
+      <div>
+        <h1>DQ9 자산투여금액 조견표</h1>
+        <p class="header-date" id="headerDate"></p>
+      </div>
+    </div>
+    <div class="header-badge">
+      <i class="fas fa-dragon"></i>
+      <span class="badge-text">Dragon Quest 9</span>
+    </div>
+  </div>
+</header>
+
+<main class="container">
+
+  <!-- KPI Cards -->
+  <section class="kpi-grid">
+    <div class="kpi-card kpi-total">
+      <div class="kpi-icon"><i class="fas fa-coins"></i></div>
+      <div class="kpi-info">
+        <span class="kpi-label">총 투여금액</span>
+        <span class="kpi-value" id="kpiTotal">0원</span>
+      </div>
+    </div>
+    <div class="kpi-card kpi-regular">
+      <div class="kpi-icon"><i class="fas fa-calendar-alt"></i></div>
+      <div class="kpi-info">
+        <span class="kpi-label">적립식 투여금액</span>
+        <span class="kpi-value" id="kpiRegular">0원</span>
+      </div>
+    </div>
+    <div class="kpi-card kpi-lump">
+      <div class="kpi-icon"><i class="fas fa-wallet"></i></div>
+      <div class="kpi-info">
+        <span class="kpi-label">일시 투여금액</span>
+        <span class="kpi-value" id="kpiLump">0원</span>
+      </div>
+    </div>
+    <div class="kpi-card kpi-count">
+      <div class="kpi-icon"><i class="fas fa-list-ol"></i></div>
+      <div class="kpi-info">
+        <span class="kpi-label">총 입금 건수</span>
+        <span class="kpi-value" id="kpiCount">0건</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Monthly Summary -->
+  <section class="monthly-section">
+    <h2 class="section-title"><i class="fas fa-calendar-check"></i> 월별 입금 현황</h2>
+    <div class="monthly-grid" id="monthlyGrid"></div>
+  </section>
+
+  <!-- Daily Chart -->
+  <section class="charts-row">
+    <div class="chart-card chart-full">
+      <div class="chart-header">
+        <h2><i class="fas fa-bar-chart"></i> 일별 입금 현황</h2>
+        <div class="chart-filters">
+          <button class="filter-btn active" data-filter="all">전체</button>
+          <button class="filter-btn" data-filter="01">1월</button>
+          <button class="filter-btn" data-filter="02">2월</button>
+          <button class="filter-btn" data-filter="03">3월</button>
+        </div>
+      </div>
+      <div style="height:280px;">
+        <canvas id="dailyChart"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <!-- Transaction Table -->
+  <section class="table-section">
+    <div class="table-header">
+      <h2 class="section-title"><i class="fas fa-table"></i> 입금 내역 상세</h2>
+    </div>
+    <div class="table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>날짜</th><th>제목</th><th>금액</th>
+            <th>카테고리</th><th>송금계좌</th><th>메모</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+    <div class="table-footer">
+      <span id="tableInfo">불러오는 중...</span>
+      <div class="pagination" id="pagination"></div>
+    </div>
+  </section>
+
+  <!-- Category Doughnut -->
+  <section class="charts-row charts-row-bottom">
+    <div class="chart-card chart-full">
+      <div class="chart-header">
+        <h2><i class="fas fa-pie-chart"></i> 수익 카테고리</h2>
+      </div>
+      <div class="category-chart-wrap">
+        <div style="height:300px;max-width:300px;margin:0 auto;">
+          <canvas id="categoryChart"></canvas>
+        </div>
+        <div id="categoryLegend" class="custom-legend custom-legend-row"></div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <p>DQ9 자산투여금액 조견표 &nbsp;|&nbsp; 기준일: <span id="footerDate"></span></p>
+</footer>
+
+<div class="fab-container" id="fabContainer">
+  <div class="fab-menu" id="fabMenu">
+    <a href="input.html" class="fab-item" title="자산 입력">
+      <span class="fab-item-label">자산 입력</span>
+      <div class="fab-item-icon" style="background:linear-gradient(135deg,#4f46e5,#6366f1)">
+        <i class="fas fa-plus"></i>
+      </div>
+    </a>
+    <a href="#top" class="fab-item" title="맨 위로" onclick="window.scrollTo({top:0,behavior:'smooth'});return false;">
+      <span class="fab-item-label">맨 위로</span>
+      <div class="fab-item-icon" style="background:linear-gradient(135deg,#0d1b3e,#1a1a2e)">
+        <i class="fas fa-arrow-up"></i>
+      </div>
+    </a>
+  </div>
+  <button class="fab-main" id="fabMain" title="메뉴"
+    onclick="this.classList.toggle('active');document.getElementById('fabMenu').classList.toggle('open');">
+    <i class="fas fa-dragon"></i>
+  </button>
+</div>
+
+<script src="js/logo.js"></script>
+<script>
+// ============================================================
+//  DQ9 대시보드 — 완전 인라인 스크립트 (외부 의존성 없음)
+// ============================================================
+
+const CAT_CLASS = {
+  '당근마켓':'cat-당근','AI·강의':'cat-AI강의','환급·환불':'cat-환급금',
+  '주식·투자':'cat-주식','알바':'cat-알바','잔액이체':'cat-잔액이체',
+  '중고나라·번개':'cat-중고나라','기타수익':'cat-기타수익','기타':'cat-일시'
+};
+const CAT_COLORS = ['#0072ff','#CC0000','#1a7a4a','#B8860B','#5B2DA0','#AA2020','#2e7d52','#7a4a00','#1a4a80'];
+
+function getCategory(note) {
+  if (!note) return '기타';
+  if (note.startsWith('당근')) return '당근마켓';
+  if (/AI|강의|자문/.test(note)) return 'AI·강의';
+  if (/환급|환불|환율|범칙금/.test(note)) return '환급·환불';
+  if (/주식|업비트|카카오주식/.test(note)) return '주식·투자';
+  if (/알바/.test(note)) return '알바';
+  if (/잔액|이체/.test(note)) return '잔액이체';
+  if (/중고나라|번개장터/.test(note)) return '중고나라·번개';
+  if (/수익|자문료|기획/.test(note)) return '기타수익';
+  return '기타';
+}
+
+function fmt(n)      { return Number(n).toLocaleString('ko-KR') + '원'; }
+function fmtShort(n) {
+  if (n >= 1000000) return (n/1000000).toFixed(1)+'백만원';
+  if (n >= 10000)   return Math.round(n/10000)+'만원';
+  return Number(n).toLocaleString('ko-KR')+'원';
+}
+
+function animateNumber(el, target) {
+  if (!el) return;
+  const dur = 900, t0 = performance.now();
+  (function step(now) {
+    const p = Math.min((now-t0)/dur, 1);
+    el.textContent = Math.round((1-Math.pow(1-p,3))*target).toLocaleString('ko-KR')+'원';
+    if (p < 1) requestAnimationFrame(step);
+  })(t0);
+}
+
+// ── 페이지네이션 상태 ──
+let _records = [], _page = 1;
+const PAGE = 20;
+
+// ── KPI ──
+function renderKPI(recs) {
+  const total = recs.reduce((s,r)=>s+Number(r.total_asset),0);
+  const lump  = recs.filter(r=>(r.account||'').includes('개인계좌')||(r.title||'').includes('일시투여'))
+                    .reduce((s,r)=>s+Number(r.total_asset),0);
+  animateNumber(document.getElementById('kpiTotal'),   total);
+  animateNumber(document.getElementById('kpiRegular'), total-lump);
+  animateNumber(document.getElementById('kpiLump'),    lump);
+  const kc = document.getElementById('kpiCount');
+  if (kc) kc.textContent = recs.filter(r=>!(r.title||'').includes('일시투여')).length + '건';
+}
+
+// ── 월별 카드 ──
+function renderMonthly(recs) {
+  const months={}, cnts={};
+  recs.forEach(r=>{
+    const m=(r.record_date||'').slice(5,7);
+    months[m]=(months[m]||0)+Number(r.total_asset);
+    cnts[m]=(cnts[m]||0)+1;
+  });
+  const keys=Object.keys(months).sort();
+  const maxA=Math.max(...Object.values(months),1);
+  const names={'01':'1월','02':'2월','03':'3월','04':'4월','05':'5월','06':'6월',
+               '07':'7월','08':'8월','09':'9월','10':'10월','11':'11월','12':'12월'};
+  const grid=document.getElementById('monthlyGrid');
+  if (!grid) return;
+  grid.innerHTML=keys.map(m=>`
+    <div class="monthly-card">
+      <div class="monthly-title"><i class="fas fa-calendar"></i> ${names[m]||m+'월'}</div>
+      <div class="monthly-amount">${fmt(months[m])}</div>
+      <div class="monthly-sub">${cnts[m]}건 입금</div>
+      <div class="monthly-bar-bg"><div class="monthly-bar-fill" style="width:${(months[m]/maxA*100).toFixed(1)}%"></div></div>
+    </div>`).join('');
+}
+
+// ── 일별 차트 ──
+let _dailyChart = null;
+function renderDaily(recs, month) {
+  month = month || 'all';
+  const txs = month==='all' ? recs : recs.filter(r=>(r.record_date||'').slice(5,7)===month);
+  const map={};
+  txs.forEach(r=>{
+    const lbl=(r.record_date||'').slice(5).replace('-','.');
+    map[lbl]=(map[lbl]||0)+Number(r.total_asset);
+  });
+  const sorted=Object.entries(map).sort((a,b)=>{
+    const [am,ad]=a[0].split('.').map(Number), [bm,bd]=b[0].split('.').map(Number);
+    return am!==bm?am-bm:ad-bd;
+  });
+  const labels=sorted.map(e=>e[0]), vals=sorted.map(e=>e[1]);
+  const maxV=Math.max(...vals,1);
+  const cvs=document.getElementById('dailyChart');
+  if (!cvs) return;
+  if (_dailyChart) { _dailyChart.destroy(); _dailyChart=null; }
+  _dailyChart=new Chart(cvs.getContext('2d'),{
+    type:'bar',
+    data:{labels,datasets:[{label:'입금액',data:vals,
+      backgroundColor:vals.map(v=>`rgba(0,114,255,${(0.35+(v/maxV)*0.55).toFixed(2)})`),
+      borderRadius:2,borderSkipped:false}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{
+        callbacks:{label:c=>fmt(c.parsed.y)},
+        backgroundColor:'rgba(10,22,40,0.95)',borderColor:'rgba(0,198,255,0.4)',borderWidth:1,
+        titleColor:'#00c6ff',bodyColor:'#8ab4d4',padding:10}},
+      scales:{
+        x:{grid:{color:'rgba(0,198,255,0.05)'},ticks:{color:'#4a7090',font:{size:10},maxRotation:45}},
+        y:{grid:{color:'rgba(0,198,255,0.05)'},ticks:{color:'#4a7090',font:{size:10},callback:v=>fmtShort(v)},beginAtZero:true}
+      }}
+  });
+}
+
+// ── 테이블 ──
+function renderTable(recs) {
+  const sorted=[...recs].sort((a,b)=>{
+    if(a.record_date>b.record_date)return -1;
+    if(a.record_date<b.record_date)return 1;
+    return (b.created_at||0)-(a.created_at||0);
+  });
+  _records=sorted;
+  const total=sorted.length;
+  const pages=Math.max(1,Math.ceil(total/PAGE));
+  if(_page>pages)_page=1;
+  const s=(_page-1)*PAGE, e=Math.min(s+PAGE,total);
+  const chunk=sorted.slice(s,e);
+
+  const tbody=document.getElementById('tableBody');
+  if (!tbody) return;
+  if (!chunk.length) {
+    tbody.innerHTML=`<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-muted);">데이터가 없습니다.</td></tr>`;
+  } else {
+    tbody.innerHTML=chunk.map(r=>{
+      const cat=getCategory(r.title||''), cls=CAT_CLASS[cat]||'cat-일시';
+      const dl=(r.record_date||'').slice(5).replace('-','.');
+      const acct=(r.account||'').replace('계좌','');
+      const memo=r.memo||r.title||'-';
+      return `<tr>
+        <td class="date-col"><i class="fas fa-calendar-day" style="margin-right:4px;font-size:0.7rem;"></i>${dl}</td>
+        <td class="note-col">${r.title||'-'}</td>
+        <td class="amount-col">${fmt(r.total_asset)}</td>
+        <td><span class="cat-badge ${cls}">${cat}</span></td>
+        <td class="account-col">${acct}</td>
+        <td class="memo-col">${memo}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  const info=document.getElementById('tableInfo');
+  if (info) info.textContent=`총 ${total}건 중 ${s+1}~${e}건 표시`;
+  renderPagination(pages);
+}
+
+function renderPagination(totalPages) {
+  const pg=document.getElementById('pagination');
+  if (!pg) return;
+  if (totalPages<=1){pg.innerHTML='';return;}
+  const R=2;
+  let h=`<button class="page-btn" onclick="gp(${_page-1})" ${_page===1?'disabled':''}><i class="fas fa-chevron-left"></i></button>`;
+  for(let i=1;i<=totalPages;i++){
+    if(i===1||i===totalPages||(i>=_page-R&&i<=_page+R))
+      h+=`<button class="page-btn ${i===_page?'active':''}" onclick="gp(${i})">${i}</button>`;
+    else if(i===_page-R-1||i===_page+R+1)
+      h+=`<button class="page-btn" disabled>…</button>`;
+  }
+  h+=`<button class="page-btn" onclick="gp(${_page+1})" ${_page===totalPages?'disabled':''}><i class="fas fa-chevron-right"></i></button>`;
+  pg.innerHTML=h;
+}
+
+window.gp=function(n){
+  const pages=Math.ceil(_records.length/PAGE);
+  if(n<1||n>pages)return;
+  _page=n;
+  renderTable(_records);
+  document.querySelector('.table-section')?.scrollIntoView({behavior:'smooth',block:'start'});
+};
+
+// ── 카테고리 도넛 ──
+let _catChart=null;
+function renderCategory(recs) {
+  const map={};
+  recs.forEach(r=>{ const c=getCategory(r.title||''); map[c]=(map[c]||0)+Number(r.total_asset); });
+  const sorted=Object.entries(map).sort((a,b)=>b[1]-a[1]);
+  const labels=sorted.map(e=>e[0]), vals=sorted.map(e=>e[1]);
+  const total=vals.reduce((s,v)=>s+v,0);
+  const colors=labels.map((_,i)=>CAT_COLORS[i%CAT_COLORS.length]);
+  const cvs=document.getElementById('categoryChart');
+  if (!cvs) return;
+  if (_catChart){_catChart.destroy();_catChart=null;}
+  _catChart=new Chart(cvs.getContext('2d'),{
+    type:'doughnut',
+    data:{labels,datasets:[{data:vals,backgroundColor:colors,borderColor:'rgba(0,198,255,0.2)',borderWidth:2,hoverOffset:6}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'65%',
+      plugins:{legend:{display:false},tooltip:{
+        callbacks:{label:c=>` ${fmt(c.parsed)} (${((c.parsed/total)*100).toFixed(1)}%)`},
+        backgroundColor:'rgba(10,22,40,0.95)',borderColor:'rgba(0,198,255,0.4)',borderWidth:1,
+        titleColor:'#00c6ff',bodyColor:'#8ab4d4',padding:10}}}
+  });
+  const leg=document.getElementById('categoryLegend');
+  if (leg) leg.innerHTML=sorted.map(([cat,amt],i)=>`
+    <div class="legend-item">
+      <span class="legend-dot" style="background:${colors[i]}"></span>
+      <span class="legend-name">${cat}</span>
+      <span class="legend-pct">${fmt(amt)}</span>
+    </div>`).join('');
+}
+
+// ── 날짜 ──
+function setDates(){
+  const s=new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric',weekday:'long'});
+  const hd=document.getElementById('headerDate'); if(hd)hd.textContent='기준일: '+s;
+  const fd=document.getElementById('footerDate'); if(fd)fd.textContent=s;
+}
+
+// ── 메인 초기화 ──
+document.addEventListener('DOMContentLoaded', async ()=>{
+  setDates();
+
+  // 필터 버튼
+  document.querySelectorAll('.filter-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      renderDaily(_records.length?_records:[], btn.dataset.filter);
+    });
+  });
+
+  try {
+    // ★ sort 파라미터 제거 — API 버그로 sort 사용시 일부 데이터 누락됨
+    const res  = await fetch('tables/asset_records?limit=500');
+    const json = await res.json();
+    let recs = (json.data||[])
+      .filter(r=>r.id!=='seed-01'&&Number(r.total_asset)>0);
+
+    // 500건 초과시 추가 페이지 로드
+    if ((json.total||0) > 500) {
+      const res2  = await fetch('tables/asset_records?limit=500&page=2');
+      const json2 = await res2.json();
+      recs = recs.concat((json2.data||[]).filter(r=>r.id!=='seed-01'&&Number(r.total_asset)>0));
+    }
+
+    recs = recs.sort((a,b)=>{
+      if(a.record_date<b.record_date)return -1;
+      if(a.record_date>b.record_date)return 1;
+      return (a.created_at||0)-(b.created_at||0);
+    });
+
+    console.log('[DQ9] 로드 완료: '+recs.length+'건');
+
+    renderKPI(recs);
+    renderMonthly(recs);
+    renderDaily(recs,'all');
+    renderTable(recs);
+    renderCategory(recs);
+
+  } catch(e) {
+    console.error('[DQ9] 로드 실패:', e);
+    document.getElementById('tableInfo').textContent='데이터 로드 실패: '+e.message;
+  }
+
+  // 로딩 오버레이 제거
+  const ov=document.getElementById('loadingOverlay');
+  if(ov) ov.style.display='none';
+});
+</script>
+</body>
+</html>
