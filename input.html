@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DQ9 자산 입력 관리자</title>
+  <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" />
+  <link rel="stylesheet" href="css/input.css" />
+</head>
+<body>
+
+  <!-- ══ LOGIN SCREEN ══════════════════════════════════ -->
+  <div id="loginScreen" class="login-screen">
+    <div class="login-card">
+      <div class="login-logo">
+        <i class="fas fa-dragon"></i>
+        <span>DQ9</span>
+      </div>
+      <h2 class="login-title">관리자 로그인</h2>
+      <p class="login-sub">자산 입력 페이지에 접근하려면 인증이 필요합니다.</p>
+
+      <form id="loginForm" class="login-form">
+        <div class="field-group">
+          <label><i class="fas fa-user"></i> 아이디</label>
+          <input type="text" id="loginId" placeholder="valuencores" autocomplete="username" />
+        </div>
+        <div class="field-group">
+          <label><i class="fas fa-lock"></i> 패스워드</label>
+          <div class="pw-wrap">
+            <input type="password" id="loginPw" placeholder="패스워드 입력" autocomplete="current-password" />
+            <button type="button" class="pw-toggle" onclick="togglePw()"><i class="fas fa-eye" id="pwEyeIcon"></i></button>
+          </div>
+        </div>
+        <div id="loginError" class="login-error hidden"><i class="fas fa-exclamation-circle"></i> 아이디 또는 패스워드가 올바르지 않습니다.</div>
+        <button type="submit" class="btn-login">
+          <i class="fas fa-sign-in-alt"></i> 로그인
+        </button>
+      </form>
+      <a href="index.html" class="login-back"><i class="fas fa-arrow-left"></i> 대시보드로 돌아가기</a>
+    </div>
+  </div>
+
+  <!-- ══ ADMIN APP ══════════════════════════════════════ -->
+  <div id="adminApp" class="hidden">
+
+    <!-- Header -->
+    <header class="adm-header">
+      <div class="adm-header-inner">
+        <div class="adm-title">
+          <canvas class="dq9-logo" width="100" height="80" style="width:60px;height:48px;vertical-align:middle;"></canvas>
+          <span>DQ9 자산 입력 관리자</span>
+        </div>
+        <div class="adm-header-right">
+          <a href="index.html" class="btn-ghost"><i class="fas fa-chart-line"></i><span class="btn-text"> 대시보드</span></a>
+          <button class="btn-ghost" onclick="doLogout()"><i class="fas fa-sign-out-alt"></i><span class="btn-text"> 로그아웃</span></button>
+        </div>
+      </div>
+    </header>
+
+    <main class="adm-main">
+
+      <!-- ── 탭 네비게이션 ── -->
+      <div class="tab-nav">
+        <button class="tab-btn active" data-tab="input"><i class="fas fa-plus-circle"></i> 자산 입력</button>
+        <button class="tab-btn" data-tab="history"><i class="fas fa-history"></i> 입력 이력</button>
+        <button class="tab-btn" data-tab="stats"><i class="fas fa-chart-bar"></i> 통계 현황</button>
+      </div>
+
+      <!-- ══ TAB: 자산 입력 ════════════════════════════ -->
+      <div class="tab-panel active" id="tab-input">
+        <div class="panel-card">
+          <h2 class="panel-title"><i class="fas fa-pencil-alt"></i> 자산 기록 입력</h2>
+
+          <form id="assetForm" class="asset-form">
+            <!-- 로우 1: 날짜 + 제목 -->
+            <div class="form-row two-col">
+              <div class="field-group">
+                <label><i class="fas fa-calendar-day"></i> 기록 날짜 <span class="required">*</span></label>
+                <input type="date" id="inputDate" required />
+              </div>
+              <div class="field-group">
+                <label><i class="fas fa-heading"></i> 제목 <span class="required">*</span></label>
+                <input type="text" id="inputTitle" placeholder="예: 번개장터 수익" required maxlength="100" />
+              </div>
+            </div>
+
+            <!-- 로우 2: 투여금액 + DQ9 누적 -->
+            <div class="form-row two-col">
+              <div class="field-group">
+                <label><i class="fas fa-coins"></i> 투여금액 (원) <span class="required">*</span></label>
+                <div class="amount-wrap">
+                  <input type="text" id="inputTotal" placeholder="예: 50,000" required inputmode="numeric" />
+                  <span class="amount-preview" id="totalPreview"></span>
+                </div>
+              </div>
+              <div class="field-group">
+                <label>
+                  <i class="fas fa-dragon"></i> DQ9 투여 누적금액 (원)
+                  <span class="auto-calc-badge"><i class="fas fa-magic"></i> 자동계산</span>
+                </label>
+                <div class="amount-wrap dq9-wrap">
+                  <input type="text" id="inputDQ9" class="dq9-auto-input" readonly
+                    placeholder="투여금액(원) 입력 시 기존 누적 + 금일 자동계산" />
+                  <span class="amount-preview dq9-calc-detail" id="dq9Preview" style="font-size:0.75rem;"></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 로우 3: 송금계좌 + 메모 -->
+            <div class="form-row two-col">
+              <div class="field-group">
+                <label><i class="fas fa-university"></i> 송금계좌</label>
+                <input type="text" id="inputAccount" placeholder="예: DQ9신한계좌" maxlength="50" value="DQ9신한계좌" />
+              </div>
+              <div class="field-group">
+                <label><i class="fas fa-sticky-note"></i> 메모 (선택)</label>
+                <input type="text" id="inputMemo" placeholder="간단한 메모를 입력하세요" maxlength="100" />
+              </div>
+            </div>
+
+            <!-- 추천 키워드 -->
+            <div class="quick-tags">
+              <span class="tag-label">추천 키워드:</span>
+              <button type="button" class="quick-tag" data-memo="정기 기록">정기 기록</button>
+              <button type="button" class="quick-tag" data-memo="당근마켓 수익 반영">당근마켓</button>
+              <button type="button" class="quick-tag" data-memo="AI 강의 수익 반영">AI 강의</button>
+              <button type="button" class="quick-tag" data-memo="주식 수익 반영">주식 수익</button>
+              <button type="button" class="quick-tag" data-memo="급여 반영">급여</button>
+            </div>
+
+            <!-- 제출 -->
+            <div class="form-actions">
+              <button type="button" class="btn-secondary" onclick="resetForm()"><i class="fas fa-undo"></i> 초기화</button>
+              <button type="submit" class="btn-primary" id="submitBtn">
+                <i class="fas fa-save"></i> 저장하기
+              </button>
+            </div>
+          </form>
+
+          <!-- 성공/실패 메시지 -->
+          <div id="formMsg" class="form-msg hidden"></div>
+        </div>
+
+        <!-- 오늘의 요약 -->
+        <div class="panel-card today-summary" id="todaySummary" style="display:none;">
+          <h3 class="panel-title"><i class="fas fa-sun"></i> 오늘의 기록 요약</h3>
+          <div class="summary-grid" id="summaryGrid"></div>
+        </div>
+      </div>
+
+      <!-- ══ TAB: 입력 이력 ════════════════════════════ -->
+      <div class="tab-panel" id="tab-history">
+        <div class="panel-card">
+          <div class="history-header">
+            <h2 class="panel-title"><i class="fas fa-list"></i> 자산 기록 이력</h2>
+            <div class="history-controls">
+              <select id="historyRange" class="adm-select">
+                <option value="all">전체</option>
+                <option value="7">최근 7일</option>
+                <option value="30">최근 30일</option>
+                <option value="90">최근 90일</option>
+              </select>
+              <button class="btn-secondary btn-sm" onclick="loadHistory()"><i class="fas fa-sync-alt"></i> 새로고침</button>
+            </div>
+          </div>
+
+          <div class="history-table-wrap">
+            <table class="adm-table">
+              <thead>
+                <tr>
+                  <th>날짜</th>
+                  <th>제목</th>
+                  <th>투여금액</th>
+                  <th>DQ9 누적투여</th>
+                  <th>메모</th>
+                  <th>조작</th>
+                </tr>
+              </thead>
+              <tbody id="historyTableBody">
+                <tr><td colspan="6" class="loading-row"><i class="fas fa-spinner fa-spin"></i> 불러오는 중...</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div id="historyInfo" class="history-info"></div>
+        </div>
+      </div>
+
+      <!-- ══ TAB: 통계 현황 ════════════════════════════ -->
+      <div class="tab-panel" id="tab-stats">
+        <div class="stats-kpi-grid" id="statsKpiGrid">
+          <div class="stats-kpi-card">
+            <div class="stats-kpi-icon" style="background:rgba(245,158,11,0.12);color:#fbbf24"><i class="fas fa-coins"></i></div>
+            <div class="stats-kpi-info">
+              <span class="stats-kpi-label">최신 투여 누적</span>
+              <span class="stats-kpi-value" id="statLatest">-</span>
+            </div>
+          </div>
+          <div class="stats-kpi-card">
+            <div class="stats-kpi-icon" style="background:rgba(16,185,129,0.12);color:#34d399"><i class="fas fa-arrow-trend-up"></i></div>
+            <div class="stats-kpi-info">
+              <span class="stats-kpi-label">전일 대비 변화</span>
+              <span class="stats-kpi-value" id="statDayChange">-</span>
+            </div>
+          </div>
+          <div class="stats-kpi-card">
+            <div class="stats-kpi-icon" style="background:rgba(99,102,241,0.12);color:#818cf8"><i class="fas fa-calendar-week"></i></div>
+            <div class="stats-kpi-info">
+              <span class="stats-kpi-label">이번 주 변화</span>
+              <span class="stats-kpi-value" id="statWeekChange">-</span>
+            </div>
+          </div>
+          <div class="stats-kpi-card">
+            <div class="stats-kpi-icon" style="background:rgba(59,130,246,0.12);color:#60a5fa"><i class="fas fa-calendar-alt"></i></div>
+            <div class="stats-kpi-info">
+              <span class="stats-kpi-label">이번 달 변화</span>
+              <span class="stats-kpi-value" id="statMonthChange">-</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 추이 차트 -->
+        <div class="panel-card">
+          <div class="chart-section-header">
+            <h2 class="panel-title"><i class="fas fa-chart-line"></i> DQ9 투여 누적 추이</h2>
+            <div class="chart-period-btns">
+              <button class="period-btn active" data-period="weekly">주간</button>
+              <button class="period-btn" data-period="monthly">월간</button>
+              <button class="period-btn" data-period="all">전체</button>
+            </div>
+          </div>
+          <div style="height:300px; position:relative;">
+            <canvas id="trendChart"></canvas>
+          </div>
+        </div>
+
+        <!-- 일별 증감 -->
+        <div class="panel-card">
+          <h2 class="panel-title"><i class="fas fa-bar-chart"></i> 일별 투여금액 증감</h2>
+          <div style="height:240px; position:relative;">
+            <canvas id="deltaChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div><!-- /adminApp -->
+
+  <!-- 삭제 확인 모달 -->
+  <div id="deleteModal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-icon"><i class="fas fa-trash-alt"></i></div>
+      <h3>기록을 삭제하시겠습니까?</h3>
+      <p id="deleteModalDesc"></p>
+      <div class="modal-btns">
+        <button class="btn-secondary" onclick="closeDeleteModal()">취소</button>
+        <button class="btn-danger" onclick="confirmDelete()">삭제</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="js/logo.js"></script>
+<script src="input.js"></script>
+</body>
+</html>
